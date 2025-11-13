@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+/* Footer specific styles */
+footer {
+  position: relative;
+  background-color: #1a1a2e;
+}
+
+.footer-clock {
+  position: absolute;
+  top: 20px;
+  right: 30px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 10px 15px;
+  border-radius: 10px;
+}
+
+.footer-time {
+  font-size: 20px;
+  font-weight: bold;
+  color: #1e88e5;
+}
+
+.footer-date {
+  font-size: 14px;
+}
+
+.footer-content {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 30px;
+  padding: 60px 30px 30px;
+}
+
+.footer-section h3 {
+  color: #1e88e5;
+  margin-bottom: 15px;
+  font-size: 18px;
+}
+
+.footer-section p {
+  margin-bottom: 10px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.footer-bottom {
+  text-align: center;
+  padding: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 14px;
+  color: #aaa;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .footer-clock {
+    position: static;
+    margin: 0 auto 20px;
+    width: fit-content;
+  }
+  
+  .footer-content {
+    grid-template-columns: 1fr;
+    padding-top: 30px;
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+}

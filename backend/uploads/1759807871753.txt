@@ -1,0 +1,4 @@
+mail id :saranya.p@kodebloom.com
+password : S@ranyakodebloom
+
+mail url:  https://bom1plzcpnl503781.prod.bom1.secureserver.net:2096/cpsess9905752467/3rdparty/roundcube/index.php?_task=mail&_mbox=INBOX
