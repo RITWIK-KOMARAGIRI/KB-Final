@@ -9,10 +9,10 @@ export default function AttendanceLeavePanel() {
 
   const storedUser = JSON.parse(localStorage.getItem("users"));
   const isEmployee = storedUser?.role === "employee";
-  const employeeId = storedUser?.employeeId; // employees only, HR/director ignore
+  const employeeId = storedUser?.employeeId;
 
   // ---------------------------------------------------------------------
-  // Fetch ALL employees → build ID→Name dictionary
+  // Fetch ALL Employees once → store in a map { _id: name }
   // ---------------------------------------------------------------------
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -34,17 +34,18 @@ export default function AttendanceLeavePanel() {
   }, []);
 
   // ---------------------------------------------------------------------
-  // Fetch Attendance (HR = all employees, Employee = their own)
+  // Fetch attendance
+  //  - employee → /employee/:id
+  //  - hr/director → /all
   // ---------------------------------------------------------------------
   const fetchAttendance = async () => {
     try {
       let url = "";
 
       if (isEmployee) {
-        // Employee → only their own attendance
+        if (!employeeId) return;
         url = `http://localhost:5000/api/attendance/employee/${employeeId}?month=${month}`;
       } else {
-        // HR / Director → fetch ALL attendance for all employees
         url = `http://localhost:5000/api/attendance/all?month=${month}`;
       }
 
@@ -57,6 +58,7 @@ export default function AttendanceLeavePanel() {
 
   useEffect(() => {
     fetchAttendance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month]);
 
   // ---------------------------------------------------------------------
@@ -78,10 +80,33 @@ export default function AttendanceLeavePanel() {
     return `${hours}h ${minutes}m`;
   };
 
-  // Sample leave requests (dummy)
+  // 👉 Smart resolver: handles populated object OR raw ID
+  const getEmployeeName = (row) => {
+    if (!row.employee) return "Unknown";
+
+    // If populated: { _id, name, ... }
+    if (typeof row.employee === "object") {
+      return row.employee.name || "Unknown";
+    }
+
+    // If still ID string: use map
+    return employeesMap[row.employee] || "Unknown";
+  };
+
+  // Demo leave requests
   const leaveRequests = [
-    { name: "Ritwik Komaragiri", date: "2025-11-28", reason: "Medical", status: "Pending" },
-    { name: "Sanjay Kumar", date: "2025-11-30", reason: "Personal", status: "Pending" },
+    {
+      name: "Ritwik Komaragiri",
+      date: "2025-11-28",
+      reason: "Medical",
+      status: "Pending",
+    },
+    {
+      name: "Sanjay Kumar",
+      date: "2025-11-30",
+      reason: "Personal",
+      status: "Pending",
+    },
   ];
 
   // ---------------------------------------------------------------------
@@ -89,13 +114,17 @@ export default function AttendanceLeavePanel() {
   // ---------------------------------------------------------------------
   return (
     <div className="space-y-6 text-gray-800 dark:text-gray-100">
+      {/* Header */}
       <div className="text-3xl font-semibold">Attendance & Leave Management</div>
 
       {/* Filters */}
       <div className="flex items-center gap-4 bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
         <div className="flex items-center bg-gray-200 dark:bg-gray-700 px-3 py-2 rounded-md flex-1">
           <FiSearch className="text-gray-500" />
-          <input placeholder="Search employee" className="ml-2 bg-transparent outline-none w-full" />
+          <input
+            placeholder="Search employee"
+            className="ml-2 bg-transparent outline-none w-full"
+          />
         </div>
 
         <div className="flex items-center bg-gray-200 dark:bg-gray-700 px-3 py-2 rounded-md">
@@ -112,7 +141,10 @@ export default function AttendanceLeavePanel() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {["Present: 21", "Absent: 2", "Leave Requests: 5"].map((stat, i) => (
-          <div key={i} className="bg-white dark:bg-gray-800 shadow p-5 rounded-lg text-center font-semibold text-lg">
+          <div
+            key={i}
+            className="bg-white dark:bg-gray-800 shadow p-5 rounded-lg text-center font-semibold text-lg"
+          >
             {stat}
           </div>
         ))}
@@ -136,17 +168,26 @@ export default function AttendanceLeavePanel() {
 
           <tbody>
             {attendance.map((row, idx) => (
-              <tr key={idx} className="hover:bg-gray-100 dark:hover:bg-gray-700 transition">
-                {/* EMPLOYEE NAME */}
+              <tr
+                key={idx}
+                className="hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+              >
+                {/* Employee Name (handles both populate + id) */}
                 <td className="py-2 font-medium">
-                  {employeesMap[row.employee] || "Unknown"}
+                  {getEmployeeName(row)}
                 </td>
 
+                {/* Date */}
                 <td>{new Date(row.date).toLocaleDateString()}</td>
+
+                {/* Times */}
                 <td>{formatTime(row.loginAt)}</td>
                 <td>{formatTime(row.logoutAt)}</td>
+
+                {/* Hours */}
                 <td>{calculateHours(row.loginAt, row.logoutAt)}</td>
 
+                {/* Status */}
                 <td
                   className={`font-medium ${
                     row.status === "Present"
@@ -169,10 +210,15 @@ export default function AttendanceLeavePanel() {
         <h3 className="font-bold mb-3 text-xl">Pending Leave Requests</h3>
 
         {leaveRequests.map((req, idx) => (
-          <div key={idx} className="flex justify-between items-center p-4 rounded-lg border dark:border-gray-600 mb-3">
+          <div
+            key={idx}
+            className="flex justify-between items-center p-4 rounded-lg border dark:border-gray-600 mb-3"
+          >
             <div>
               <h4 className="font-semibold">{req.name}</h4>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{req.date} • {req.reason}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {req.date} • {req.reason}
+              </p>
             </div>
 
             <div className="flex gap-3">

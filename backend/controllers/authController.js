@@ -1,10 +1,14 @@
 // backend/controllers/authController.js
+
+
+// SIGNIN + record login time / attendance
+// backend/controllers/authController.js
 import User from "../models/User.js";
 import Employee from "../models/Employee.js";
 import Attendance from "../models/Attendance.js";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
-// SIGNIN + record login time / attendance
 export const signin = async (req, res) => {
   const { email, password } = req.body;
 
@@ -28,12 +32,12 @@ export const signin = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // ✅ LOGIN SUCCESS — record login time + attendance if this user is linked to an Employee
     const now = new Date();
-    let employeeDoc = null;
 
+    // 1) ATTENDANCE + lastLoginAt (for users that are linked to Employee)
     if (user.employee) {
-      employeeDoc = await Employee.findById(user.employee);
+      const employeeDoc = await Employee.findById(user.employee);
+
       if (employeeDoc) {
         // last login time
         employeeDoc.lastLoginAt = now;
@@ -68,18 +72,34 @@ export const signin = async (req, res) => {
       }
     }
 
-    // Response sent to frontend (same as before)
+    // 2) JWT
+    const tokenPayload = {
+      userId: user._id,
+      role: user.role,
+      employeeId: user.employee, // Employee _id
+    };
+
+    const token = jwt.sign(
+      tokenPayload,
+      process.env.JWT_SECRET || "dev_secret",
+      { expiresIn: "7d" }
+    );
+
+    // 3) Response to frontend
     res.json({
       _id: user._id,
       name: user.name,
       role: user.role,
       email: user.email,
-  employeeId: user.role === "employee" ? user.employee : null,    });
+      employeeId: user.employee, // Employee _id
+      token,
+    });
   } catch (error) {
     console.error("Signin error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 // ✅ Logout: record logout time / attendance
 export const logout = async (req, res) => {
