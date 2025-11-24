@@ -125,6 +125,15 @@ export const employeesAssigned = async (req, res) => {
   }
 };
 
+export const logout = async (req, res) => {
+  try {
+    res.json({ message: "Logout successful" });
+  } catch (error) {
+    console.error("Error during logout:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 export const projectManagersAssigned = async (req, res) => {
   try {
     const pms = await Employee.find({ role: "project managers" });

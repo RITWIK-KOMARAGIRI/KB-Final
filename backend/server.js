@@ -20,6 +20,7 @@ import announcementRoutes from "./routes/announcementRoutes.js";
 import performanceRoutes from "./routes/performanceRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
+import attendanceRoutes from "./routes/AttendanceRoutes.js";
 
 // Models
 import Notification from "./models/Notification.js";
@@ -44,6 +45,7 @@ app.use(
     credentials: true,
   })
 );
+app.use("/api/attendance", attendanceRoutes);
 
 // ✅ Health check
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
