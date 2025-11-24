@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 
 const PendingCredentials = () => {
   const [pendingEmployees, setPendingEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const currentUser = (() => {
     try {
@@ -15,34 +16,40 @@ const PendingCredentials = () => {
     }
   })();
 
-  useEffect(() => {
+  const fetchPendingEmployees = async () => {
     if (!currentUser?.employeeId) {
-      console.error("User not found");
+      console.error("User not found / employeeId missing in localStorage");
       setLoading(false);
       return;
     }
 
-    axios
-      .get(
+    try {
+      setLoading(true);
+
+      // HR-specific employees API (adjust URL if your route is different)
+      const res = await axios.get(
         `http://localhost:5000/api/hr/employees/hr/${currentUser.employeeId}`
-      )
-      .then((response) => {
-        const allEmployees = Array.isArray(response.data)
-          ? response.data
-          : [];
+      );
 
-        // Filter employees WITHOUT credentials
-        const filtered = allEmployees.filter(
-          (emp) => emp.credentialstatus !== "Completed"
-        );
+      const allEmployees = Array.isArray(res.data) ? res.data : [];
 
-        setPendingEmployees(filtered);
-      })
-      .catch((err) => {
-        console.error("Error fetching pending employees:", err);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+      // Only employees whose credentialstatus is NOT Completed
+      const filtered = allEmployees.filter(
+        (emp) => emp.credentialstatus !== "Completed"
+      );
+
+      setPendingEmployees(filtered);
+    } catch (err) {
+      console.error("Error fetching pending employees:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch on mount AND whenever we navigate back to this page
+  useEffect(() => {
+    fetchPendingEmployees();
+  }, [location.key]);
 
   return (
     <div className="min-h-screen p-6 bg-gray-50">
@@ -52,7 +59,7 @@ const PendingCredentials = () => {
           Employees Pending Credentials
         </h1>
 
-        {/* Loading State */}
+        {/* Loading / Empty / List */}
         {loading ? (
           <p className="text-gray-600">Loading...</p>
         ) : pendingEmployees.length === 0 ? (
@@ -99,7 +106,7 @@ const PendingCredentials = () => {
                 <button
                   onClick={() =>
                     navigate("/hr/credentials", {
-                      state: { employee, empId: employee._id },
+                      state: { employee }, // pass full object, includes _id
                     })
                   }
                   className="w-full mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"

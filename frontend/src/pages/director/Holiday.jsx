@@ -1,15 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import axios from "axios";
+import { ThemeContext } from "../../context/ThemeContext";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5173";
-
-// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-// ✨ Year Calendar Component (No Theme)
-// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// =======================================================
+// 📅 YEAR CALENDAR (with Dark/Light Theme)
+// =======================================================
 const YearCalendar = () => {
   const [year, setYear] = useState(new Date().getFullYear().toString());
   const [displayYear, setDisplayYear] = useState(new Date().getFullYear());
   const [calendarData, setCalendarData] = useState([]);
+
+  const { theme } = useContext(ThemeContext);
 
   const today = new Date();
   const currentYear = today.getFullYear();
@@ -46,19 +47,21 @@ const YearCalendar = () => {
     }
   };
 
-  const cardStyle = "rounded-lg shadow bg-white border border-gray-200";
-  const monthHeaderStyle =
-    "p-2 text-center font-semibold text-white bg-blue-700 rounded-t-md";
-  const dayHeaderStyle =
-    "p-2 text-xs font-bold grid grid-cols-7 gap-1 text-gray-600";
-  const dayGridStyle = "p-2 grid grid-cols-7 gap-1 text-sm";
-  const dayBaseStyle = "flex items-center justify-center w-8 h-8 rounded-full";
-  const dayTextStyle = "text-gray-700";
-  const todayStyle = "bg-red-500 text-white";
-
   return (
-    <div className="text-gray-900">
-      <h2 className="text-2xl font-bold mb-6 border-b pb-3 text-gray-800 border-gray-200">
+    <div
+      className={`transition-all duration-300 ${
+        theme === "dark"
+          ? "text-gray-200"
+          : "text-gray-900"
+      }`}
+    >
+      <h2
+        className={`text-2xl font-bold mb-6 border-b pb-3 ${
+          theme === "dark"
+            ? "border-gray-700 text-blue-300"
+            : "border-gray-200 text-blue-800"
+        }`}
+      >
         📅 Year Calendar Generator
       </h2>
 
@@ -66,38 +69,57 @@ const YearCalendar = () => {
         onSubmit={handleSubmit}
         className="flex items-center justify-center mb-6 space-x-3"
       >
-        <label htmlFor="yearInput" className="text-sm font-medium">
-          Enter Year:
-        </label>
+        <label className="text-sm font-medium">Enter Year:</label>
         <input
           type="number"
-          id="yearInput"
           value={year}
           onChange={(e) => setYear(e.target.value)}
-          className="w-24 p-2 border rounded-md text-sm bg-white border-gray-300 text-gray-800"
-          placeholder="e.g., 2025"
+          className={`w-24 p-2 border rounded-md text-sm transition-all duration-300
+            ${
+              theme === "dark"
+                ? "bg-[#11152e] border-gray-600 text-gray-200"
+                : "bg-white border-gray-300 text-gray-800"
+            }
+          `}
         />
         <button
           type="submit"
-          className="px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800"
         >
           Generate Calendar
         </button>
       </form>
 
       <h3 className="text-xl font-semibold text-center mb-6">{displayYear}</h3>
+
+      {/* Calendar GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {calendarData.map((month, monthIndex) => (
-          <div key={month.monthName} className={cardStyle}>
-            <div className={monthHeaderStyle}>{month.monthName}</div>
-            <div className={dayHeaderStyle}>
+          <div
+            key={month.monthName}
+            className={`rounded-lg shadow border transition-all duration-300 ${
+              theme === "dark"
+                ? "bg-[#0f1330] border-gray-700"
+                : "bg-white border-gray-200"
+            }`}
+          >
+            <div className="p-2 text-center font-semibold text-white bg-blue-700 rounded-t-md">
+              {month.monthName}
+            </div>
+
+            <div
+              className={`p-2 text-xs font-bold grid grid-cols-7 gap-1 ${
+                theme === "dark" ? "text-gray-300" : "text-gray-600"
+              }`}
+            >
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
                 <div key={day} className="text-center">
                   {day}
                 </div>
               ))}
             </div>
-            <div className={dayGridStyle}>
+
+            <div className="p-2 grid grid-cols-7 gap-1 text-sm">
               {month.days.map((day, idx) => {
                 const isToday =
                   displayYear === currentYear &&
@@ -108,8 +130,12 @@ const YearCalendar = () => {
                   <div key={idx} className="flex items-center justify-center">
                     {day ? (
                       <span
-                        className={`${dayBaseStyle} ${
-                          isToday ? todayStyle : dayTextStyle
+                        className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                          isToday
+                            ? "bg-red-500 text-white"
+                            : theme === "dark"
+                            ? "text-gray-200"
+                            : "text-gray-700"
                         }`}
                       >
                         {day}
@@ -128,220 +154,150 @@ const YearCalendar = () => {
   );
 };
 
-// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-// 🗓️ Holiday List Component (Sorted + Tamil Nadu)
-// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// =======================================================
+// 🗓 HOLIDAY LIST (THEMED)
+// =======================================================
 const HolidayList = () => {
   const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [filters, setFilters] = useState({
     branch: "All Branches",
     month: "All Months",
     type: "All Types",
   });
 
-  // ✅ Added Tamil Nadu holidays
+  const { theme } = useContext(ThemeContext);
+
+  // --- Demo Data (Add more later if needed)
   const mockHolidays = [
-    // Hyderabad
-    {
-      branch: "Hyderabad",
-      date: "05-Dec-2025",
-      day: "Friday",
-      description: "Huttari Festival",
-      type: "Optional",
-    },
-    {
-      branch: "Hyderabad",
-      date: "15-Aug-2025",
-      day: "Friday",
-      description: "Independence Day",
-      type: "Mandatory",
-    },
-    {
-      branch: "Hyderabad",
-      date: "02-Oct-2025",
-      day: "Thursday",
-      description: "Gandhi Jayanti",
-      type: "Mandatory",
-    },
+    { branch: "Hyderabad", date: "05-Dec-2025", day: "Friday", description: "Huttari Festival", type: "Optional" },
+    { branch: "Hyderabad", date: "15-Aug-2025", day: "Friday", description: "Independence Day", type: "Mandatory" },
 
-    // Bangalore
-    {
-      branch: "Bangalore",
-      date: "01-Jan-2026",
-      day: "Thursday",
-      description: "New Year's Day",
-      type: "Mandatory",
-    },
-    {
-      branch: "Bangalore",
-      date: "14-Apr-2025",
-      day: "Monday",
-      description: "Ambedkar Jayanti",
-      type: "Optional",
-    },
-
-    // Tamil Nadu
-    {
-      branch: "Tamil Nadu",
-      date: "14-Jan-2025",
-      day: "Tuesday",
-      description: "Pongal",
-      type: "Mandatory",
-    },
-    {
-      branch: "Tamil Nadu",
-      date: "15-Jan-2025",
-      day: "Wednesday",
-      description: "Thiruvalluvar Day",
-      type: "Optional",
-    },
-    {
-      branch: "Tamil Nadu",
-      date: "17-Jan-2025",
-      day: "Friday",
-      description: "Kaanum Pongal",
-      type: "Optional",
-    },
-    {
-      branch: "Tamil Nadu",
-      date: "01-May-2025",
-      day: "Thursday",
-      description: "May Day",
-      type: "Mandatory",
-    },
+    { branch: "Tamil Nadu", date: "14-Jan-2025", day: "Tuesday", description: "Pongal", type: "Mandatory" },
+    { branch: "Tamil Nadu", date: "15-Jan-2025", day: "Wednesday", description: "Thiruvalluvar Day", type: "Optional" },
   ];
 
   useEffect(() => {
-    const fetchHolidays = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        setHolidays(mockHolidays);
-      } catch (err) {
-        setError("Failed to load holidays. Please try again later.");
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchHolidays();
+    setTimeout(() => {
+      setHolidays(mockHolidays);
+      setLoading(false);
+    }, 400);
   }, []);
 
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilters((prev) => ({ ...prev, [name]: value }));
-  };
-
-  // Parse “DD-MMM-YYYY” → Date
   const parseDate = (dateStr) => {
     const [day, mon, year] = dateStr.split("-");
     return new Date(`${mon} ${day}, ${year}`);
   };
 
-  const getMonthFromDateString = (dateStr) => {
-    try {
-      const parts = dateStr.split("-");
-      if (parts.length !== 3) throw new Error("Invalid date format");
-      const monthDate = new Date(`${parts[1]} 1, ${parts[2]}`);
-      if (isNaN(monthDate)) throw new Error("Could not parse month");
-      return monthDate.toLocaleString("default", { month: "long" });
-    } catch (e) {
-      console.error("Error parsing date:", dateStr, e);
-      return null;
-    }
+  const getMonth = (dateStr) => {
+    const [_, m, y] = dateStr.split("-");
+    return new Date(`${m} 1, ${y}`).toLocaleString("default", { month: "long" });
   };
 
-  const getTypeStyle = (type) => {
-    switch (type?.toLowerCase()) {
-      case "mandatory":
-        return "rounded-full px-3 py-1 text-xs font-medium bg-blue-100 text-blue-700";
-      case "optional":
-        return "rounded-full px-3 py-1 text-xs font-medium bg-green-100 text-green-700";
-      default:
-        return "rounded-full px-3 py-1 text-xs font-medium bg-gray-100 text-gray-700";
-    }
-  };
-
-  // Filter & sort holidays by date
-  const filteredHolidays = holidays
-    .filter((holiday) => {
-      if (filters.branch !== "All Branches" && holiday.branch !== filters.branch)
+  const filtered = holidays
+    .filter((h) => {
+      if (filters.branch !== "All Branches" && h.branch !== filters.branch)
         return false;
-      if (filters.month !== "All Months") {
-        const holidayMonth = getMonthFromDateString(holiday.date);
-        if (!holidayMonth || holidayMonth !== filters.month) return false;
-      }
-      if (filters.type !== "All Types" && holiday.type !== filters.type)
+      if (filters.month !== "All Months" && getMonth(h.date) !== filters.month)
+        return false;
+      if (filters.type !== "All Types" && h.type !== filters.type)
         return false;
       return true;
     })
-    .sort((a, b) => parseDate(a.date) - parseDate(b.date)); // ✅ sort ascending
+    .sort((a, b) => parseDate(a.date) - parseDate(b.date));
 
-  const availableMonths = [
-    ...new Set(
-      holidays.map((h) => getMonthFromDateString(h.date)).filter(Boolean)
-    ),
-  ].sort((a, b) => new Date(`1 ${a} 2000`) - new Date(`1 ${b} 2000`));
+  const months = [...new Set(holidays.map((h) => getMonth(h.date)))];
+  const branches = [...new Set(holidays.map((h) => h.branch))];
 
-  const availableBranches = [...new Set(holidays.map((h) => h.branch))];
+  const typeStyle = (type) =>
+    type === "Mandatory"
+      ? "bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs"
+      : "bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs";
 
   return (
     <>
-      <div className="p-6 md:p-8 rounded-xl shadow-lg max-w-6xl mx-auto bg-white">
-        <h2 className="text-2xl font-bold mb-6 border-b pb-3 text-gray-800 border-gray-200">
-          🗓️ Holidays List (Sorted)
+      <div
+        className={`p-6 md:p-8 rounded-xl shadow-lg max-w-6xl mx-auto transition-all duration-300 ${
+          theme === "dark"
+            ? "bg-[#0d0f27] text-gray-200"
+            : "bg-white text-gray-900"
+        }`}
+      >
+        <h2
+          className={`text-2xl font-bold mb-6 border-b pb-3 ${
+            theme === "dark"
+              ? "border-gray-700 text-blue-300"
+              : "border-gray-200 text-blue-800"
+          }`}
+        >
+          🗓 Holidays List (Sorted)
         </h2>
 
-        {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 p-4 rounded-lg border shadow-sm bg-white border-gray-200">
+        {/* FILTERS */}
+        <div
+          className={`grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 p-4 rounded-lg shadow-sm transition-all duration-300
+          ${
+            theme === "dark"
+              ? "bg-[#11152e] border border-gray-700"
+              : "bg-white border border-gray-200"
+          }
+        `}
+        >
+          {/* BRANCH */}
           <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700">
-              Branch Name
-            </label>
+            <label className="block text-sm font-medium mb-1">Branch Name</label>
             <select
               name="branch"
               value={filters.branch}
-              onChange={handleFilterChange}
-              className="w-full p-2 border rounded-md text-sm bg-white border-gray-300 text-gray-800 focus:ring-blue-500"
+              onChange={(e) => setFilters({ ...filters, branch: e.target.value })}
+              className={`w-full p-2 rounded-md text-sm transition-all duration-300
+              ${
+                theme === "dark"
+                  ? "bg-[#0f1330] border border-gray-600 text-gray-200"
+                  : "bg-white border border-gray-300 text-gray-800"
+              }`}
             >
               <option>All Branches</option>
-              {availableBranches.map((branch) => (
-                <option key={branch} value={branch}>
-                  {branch}
-                </option>
+              {branches.map((b) => (
+                <option key={b}>{b}</option>
               ))}
             </select>
           </div>
+
+          {/* MONTH */}
           <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700">
-              Month
-            </label>
+            <label className="block text-sm font-medium mb-1">Month</label>
             <select
               name="month"
               value={filters.month}
-              onChange={handleFilterChange}
-              className="w-full p-2 border rounded-md text-sm bg-white border-gray-300 text-gray-800 focus:ring-blue-500"
+              onChange={(e) => setFilters({ ...filters, month: e.target.value })}
+              className={`w-full p-2 rounded-md text-sm transition-all duration-300
+              ${
+                theme === "dark"
+                  ? "bg-[#0f1330] border border-gray-600 text-gray-200"
+                  : "bg-white border border-gray-300 text-gray-800"
+              }`}
             >
               <option>All Months</option>
-              {availableMonths.map((month) => (
-                <option key={month} value={month}>
-                  {month}
-                </option>
+              {months.map((m) => (
+                <option key={m}>{m}</option>
               ))}
             </select>
           </div>
+
+          {/* TYPE */}
           <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700">
-              Holiday Type
-            </label>
+            <label className="block text-sm font-medium mb-1">Holiday Type</label>
             <select
               name="type"
               value={filters.type}
-              onChange={handleFilterChange}
-              className="w-full p-2 border rounded-md text-sm bg-white border-gray-300 text-gray-800 focus:ring-blue-500"
+              onChange={(e) => setFilters({ ...filters, type: e.target.value })}
+              className={`w-full p-2 rounded-md text-sm transition-all duration-300
+              ${
+                theme === "dark"
+                  ? "bg-[#0f1330] border border-gray-600 text-gray-200"
+                  : "bg-white border border-gray-300 text-gray-800"
+              }`}
             >
               <option>All Types</option>
               <option>Mandatory</option>
@@ -350,80 +306,81 @@ const HolidayList = () => {
           </div>
         </div>
 
-        {/* Table */}
-        {loading ? (
-          <div className="text-center py-10 text-gray-500">
-            Loading holidays...
-          </div>
-        ) : error ? (
-          <div className="text-center py-10 rounded-md p-4 text-red-600 bg-red-50">
-            {error}
-          </div>
-        ) : (
-          <div className="overflow-x-auto shadow rounded-lg border border-gray-200">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead>
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider bg-blue-900 text-white">
-                    Branch Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider bg-blue-900 text-white">
-                    Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider bg-blue-900 text-white">
-                    Day
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider bg-blue-900 text-white">
-                    Description
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider bg-blue-900 text-white">
-                    Holiday Type
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y bg-white divide-gray-200">
-                {filteredHolidays.length > 0 ? (
-                  filteredHolidays.map((holiday, idx) => (
-                    <tr
-                      key={idx}
-                      className="transition-colors hover:bg-gray-50"
-                    >
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {holiday.branch}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        {holiday.date}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        {holiday.day}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {holiday.description}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        <span className={getTypeStyle(holiday.type)}>
-                          {holiday.type}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan="5"
-                      className="text-center py-10 px-6 text-gray-500"
-                    >
-                      No holidays found for the selected filters.
+        {/* TABLE */}
+        <div
+          className={`overflow-x-auto shadow rounded-lg border transition-all duration-300 ${
+            theme === "dark"
+              ? "border-gray-700 bg-[#11152e]"
+              : "border-gray-200 bg-white"
+          }`}
+        >
+          <table className="min-w-full divide-y">
+            <thead>
+              <tr className="bg-blue-900 text-white">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase">
+                  Branch Name
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase">
+                  Date
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase">
+                  Day
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase">
+                  Description
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase">
+                  Holiday Type
+                </th>
+              </tr>
+            </thead>
+
+            <tbody
+              className={`divide-y ${
+                theme === "dark"
+                  ? "divide-gray-700 text-gray-200"
+                  : "divide-gray-200 text-gray-900"
+              }`}
+            >
+              {filtered.length > 0 ? (
+                filtered.map((h, idx) => (
+                  <tr
+                    key={idx}
+                    className={`transition-colors ${
+                      theme === "dark"
+                        ? "hover:bg-[#15193b]"
+                        : "hover:bg-gray-50"
+                    }`}
+                  >
+                    <td className="px-6 py-4">{h.branch}</td>
+                    <td className="px-6 py-4">{h.date}</td>
+                    <td className="px-6 py-4">{h.day}</td>
+                    <td className="px-6 py-4">{h.description}</td>
+                    <td className="px-6 py-4">
+                      <span className={typeStyle(h.type)}>{h.type}</span>
                     </td>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" className="text-center py-10">
+                    No holidays found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <div className="p-6 md:p-8 rounded-xl shadow-lg max-w-6xl mx-auto mt-8 bg-white">
+      {/* CALENDAR BELOW */}
+      <div
+        className={`p-6 md:p-8 rounded-xl shadow-lg max-w-6xl mx-auto mt-8 transition-all duration-300 ${
+          theme === "dark"
+            ? "bg-[#0d0f27] text-gray-200"
+            : "bg-white text-gray-900"
+        }`}
+      >
         <YearCalendar />
       </div>
     </>

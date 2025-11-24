@@ -1,19 +1,28 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useContext } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBell, faBars } from "@fortawesome/free-solid-svg-icons";
-import { useNavigate } from "react-router-dom";
+import { FaSun, FaMoon, FaSignOutAlt, FaUser } from "react-icons/fa";
+import { useNavigate, NavLink } from "react-router-dom";
 import axios from "axios";
+import { ThemeContext } from "../context/ThemeContext";
+import kbLogo from "../assets/kb_logo.png";
 
 const Header = ({ toggleSidebar }) => {
   const [lastLoginTime, setLastLoginTime] = useState("");
   const [notificationCount, setNotificationCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [user, setUser] = useState({ name: "", role: "" });
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  
+
   const notificationRef = useRef(null);
+  const profileRef = useRef(null);
+
+  // Theme context
+  const { theme, toggleTheme } = useContext(ThemeContext);
+
   useEffect(() => {
     const now = new Date();
     setLastLoginTime(
@@ -36,16 +45,34 @@ const Header = ({ toggleSidebar }) => {
   // Close notification dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(event.target)
+      ) {
         setShowNotifications(false);
       }
     };
 
-    if (showNotifications) document.addEventListener("mousedown", handleClickOutside);
+    if (showNotifications)
+      document.addEventListener("mousedown", handleClickOutside);
     else document.removeEventListener("mousedown", handleClickOutside);
 
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showNotifications]);
+
+  // Close profile dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
+        setShowProfileMenu(false);
+      }
+    };
+
+    if (showProfileMenu) document.addEventListener("mousedown", handleClickOutside);
+    else document.removeEventListener("mousedown", handleClickOutside);
+
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showProfileMenu]);
 
   const clearNotifications = () => {
     setNotificationCount(0);
@@ -64,14 +91,36 @@ const Header = ({ toggleSidebar }) => {
       .finally(() => setLoading(false));
   }, []);
 
+  // Logout handler (taken from your code)
+  const handleLogout = () => {
+    localStorage.removeItem("users");
+    navigate("/");
+  };
+
   return (
-    <header className="bg-gradient-to-r from-blue-900 via-blue-900 to-blue-900 text-white px-6 h-16 fixed top-0 left-0 right-0 z-50 flex justify-between items-center shadow-lg">
+    <header
+      className={`fixed top-0 left-0 right-0 z-50 h-16 px-6 flex items-center justify-between shadow-lg transition-colors duration-300
+        ${theme === "dark"
+          ? "bg-slate-900 text-gray-100"
+          : "bg-gradient-to-r from-blue-900 via-blue-900 to-blue-900 text-white"}`}
+    >
       {/* Left Section */}
       <div className="flex items-center gap-4">
-        <button className="menu-toggle md:hidden text-white text-2xl" onClick={toggleSidebar}>
+        <button
+          className="menu-toggle md:hidden text-white text-2xl"
+          onClick={toggleSidebar}
+          aria-label="Toggle menu"
+        >
           <FontAwesomeIcon icon={faBars} />
         </button>
-        <div className="logo w-12 h-12 bg-white rounded-full flex items-center justify-center font-bold text-blue-900 text-lg shadow-md">KB</div>
+        <div className="logo w-12 h-12 rounded-full overflow-hidden flex items-center justify-center shadow-md bg-white">
+          <img
+            src={kbLogo}
+            alt="KodeBloom Logo"
+            className="object-contain w-10 h-10"
+          />
+        </div>
+
         <div className="company-name leading-tight">
           <h1 className="text-xl font-bold">KodeBloom</h1>
           <p className="text-xs opacity-90">Technology and Services Pvt. Ltd.</p>
@@ -80,15 +129,36 @@ const Header = ({ toggleSidebar }) => {
 
       {/* Right Section */}
       <div className="header-right flex items-center gap-5">
-        <div className="login-time bg-blue-900 text-white py-1 px-4 rounded-full text-sm shadow-md hidden md:block">
+        <div
+          className={`login-time py-1 px-4 rounded-full text-sm shadow-md hidden md:block ${
+            theme === "dark" ? "bg-slate-800 text-gray-200" : "bg-blue-900 text-white"
+          }`}
+        >
           Last login: <span className="font-medium">{lastLoginTime}</span>
         </div>
+
+        {/* Theme Toggle */}
+        <button
+          onClick={toggleTheme}
+          aria-label="Toggle theme"
+          title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+          className={`p-2 rounded-full transition-colors ${
+            theme === "dark" ? "bg-slate-800 text-yellow-300" : "bg-white text-gray-700"
+          }`}
+        >
+          {theme === "dark" ? <FaSun /> : <FaMoon />}
+        </button>
 
         {/* Notification Bell */}
         <div className="relative" ref={notificationRef}>
           <button
             className="text-white p-2 rounded-full hover:bg-blue-900 transition-colors relative"
-            onClick={() => setShowNotifications(!showNotifications)}
+            onClick={() => {
+              setShowNotifications((s) => !s);
+              // close profile menu if open
+              setShowProfileMenu(false);
+            }}
+            aria-label="Notifications"
           >
             <FontAwesomeIcon icon={faBell} className="text-xl text-white" />
             {notificationCount > 0 && (
@@ -98,56 +168,113 @@ const Header = ({ toggleSidebar }) => {
             )}
           </button>
 
-          {showNotifications &&  (
+          {showNotifications && (
             <div className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg overflow-hidden z-50">
               <div className="p-3 bg-blue-900 text-white font-bold flex justify-between items-center">
                 <span>Notifications ({notificationCount})</span>
-                <button onClick={clearNotifications} className="text-xs bg-blue-900 hover:bg-blue-800 px-2 py-1 rounded">
+                <button
+                  onClick={clearNotifications}
+                  className="text-xs bg-blue-900 hover:bg-blue-800 px-2 py-1 rounded"
+                >
                   Clear All
                 </button>
               </div>
 
-             <div className="max-h-60 overflow-y-auto">
-  {notifications.map((notification) => (
-    <button
-      key={notification._id}
-      onClick={() => {
-        console.log("Clicked notification:", notification); // ✅ logs full notification object
+              <div className="max-h-60 overflow-y-auto">
+                {notifications.map((notification) => (
+                  <button
+                    key={notification._id}
+                    onClick={() => {
+                      console.log("Clicked notification:", notification);
 
-        if (user.role === "HR") {
-          navigate("/hr/credentials", {
-            state: {
-              employee: notification, // send full notification object
-              empId: notification._id // notification ID if needed
-            }
-          });
-        }
-      }}
-      className="w-full text-left border-b border-gray-100 last:border-b-0 p-3 hover:bg-gray-50 cursor-pointer"
-    >
-      <p className="text-gray-800 font-semibold">{notification.title}</p>
-      <p className="text-gray-600 text-sm mt-1">{notification.body}</p>
-      <p className="text-xs text-gray-400 mt-1">
-        {new Date(notification.createdAt).toLocaleString()}
-      </p>
-    </button>
-  ))}
-</div>
-
+                      if (user.role === "HR" || user.role === "hr") {
+                        navigate("/hr/credentials", {
+                          state: {
+                            employee: notification,
+                            empId: notification._id,
+                          },
+                        });
+                      }
+                    }}
+                    className="w-full text-left border-b border-gray-100 last:border-b-0 p-3 hover:bg-gray-50 cursor-pointer"
+                  >
+                    <p className="text-gray-800 font-semibold">
+                      {notification.title}
+                    </p>
+                    <p className="text-gray-600 text-sm mt-1">
+                      {notification.body}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {new Date(notification.createdAt).toLocaleString()}
+                    </p>
+                  </button>
+                ))}
+              </div>
 
               <div className="p-2 text-center bg-gray-100">
-                <button className="text-blue-900 text-sm hover:text-blue-900">View All Notifications</button>
+                <button className="text-blue-900 text-sm hover:text-blue-900">
+                  View All Notifications
+                </button>
               </div>
             </div>
           )}
         </div>
 
-        {/* User Profile */}
-        <div className="user-profile flex items-center gap-3">
-          <div className="profile-img w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow">
-            {user.name ? user.name.split(" ").map((n) => n[0]).join("") : "JD"}
-          </div>
-          <div className="font-medium hidden md:block">{user.name} ({user.role})</div>
+        {/* User Profile (click to open profile menu) */}
+        <div className="relative" ref={profileRef}>
+          <button
+            className="user-profile flex items-center gap-3 focus:outline-none"
+            onClick={() => {
+              setShowProfileMenu((s) => !s);
+              // close notifications if open
+              setShowNotifications(false);
+            }}
+            aria-haspopup="menu"
+            aria-expanded={showProfileMenu}
+            title="User menu"
+          >
+            <div className="profile-img w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow">
+              {user.name ? user.name.split(" ").map((n) => n[0]).join("") : "JD"}
+            </div>
+            <div className="font-medium hidden md:block">
+              {user.name} ({user.role})
+            </div>
+          </button>
+
+          {showProfileMenu && (
+            <div
+              className="absolute right-0 mt-2 w-44 bg-white rounded-md shadow-lg overflow-hidden z-50"
+              role="menu"
+              aria-label="User menu"
+            >
+              <div className="p-3 border-b">
+                <div className="font-semibold text-gray-800">{user.name || "John Doe"}</div>
+                <div className="text-xs text-gray-500">{user.role || "Employee"}</div>
+              </div>
+
+              <div className="flex flex-col">
+                <NavLink
+                  to={user.role && user.role.toLowerCase() === "employee" ? "/employee/my-profile" : "/profile"}
+                  className="px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  onClick={() => setShowProfileMenu(false)}
+                >
+                  <FaUser className="w-4 h-4" />
+                  <span>Profile</span>
+                </NavLink>
+
+                <button
+                  onClick={() => {
+                    setShowProfileMenu(false);
+                    handleLogout();
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                >
+                  <FaSignOutAlt className="w-4 h-4" />
+                  <span>Logout</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </header>

@@ -14,13 +14,15 @@ import employeeRoutes from "./routes/employeeRoutes.js";
 import projectRoutes from "./routes/projectRoutes.js";
 import holidayRoutes from "./routes/holidayRoutes.js";
 import announcementRoutes from "./routes/announcementRoutes.js";
-
+import performanceRoutes from "./routes/performanceRoutes.js";
+import settingsRoutes from "./routes/settingsRoutes.js";
 
 
 // Models
 import Notification from "./models/Notification.js";
 import User from "./models/User.js";
 import Employee from "./models/Employee.js";
+
 
 dotenv.config();
 await connectDB(); // ensure MongoDB connection before starting server
@@ -52,6 +54,10 @@ app.use("/api/employees", employeeRoutes);
 app.use("/api/projects", projectRoutes); // singular for employee-specific actions
 app.use("/api/holidays", holidayRoutes);
 app.use("/api/announcements", announcementRoutes);
+app.use("/api/performance", performanceRoutes);
+app.use("/api/settings", settingsRoutes);
+
+
 
 
 

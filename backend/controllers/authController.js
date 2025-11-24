@@ -1,14 +1,16 @@
+
+// backend/controllers/authController.js (or wherever this is)
 import User from "../models/User.js";
 import Employee from "../models/Employee.js";
 import bcrypt from "bcryptjs";
 
+// SIGNIN (unchanged)
 export const signin = async (req, res) => {
   const { email, password } = req.body;
 
   try {
     console.log("SIGNIN REQUEST:", email);
 
-    // Find user
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
@@ -16,11 +18,9 @@ export const signin = async (req, res) => {
 
     let isMatch = false;
 
-    // Case 1: Password stored as bcrypt hash
     if (user.password.startsWith("$2a$") || user.password.startsWith("$2b$")) {
       isMatch = await bcrypt.compare(password, user.password);
     } else {
-      // Case 2: Stored in plain text (for testing)
       isMatch = user.password === password;
     }
 
@@ -28,13 +28,13 @@ export const signin = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // ✅ Login success
+    // Login success
     res.json({
       _id: user._id,
       name: user.name,
       role: user.role,
       email: user.email,
-      employeeId: user.employee,
+      employeeId: user.employee, // this is Employee _id
     });
   } catch (error) {
     console.error("Signin error:", error);
@@ -42,43 +42,54 @@ export const signin = async (req, res) => {
   }
 };
 
-// ✅ Save credentials without bcrypt (testing only)
+// ✅ Save credentials - NOW using Employee _id in URL
+// ✅ Save credentials - NOW using Employee _id in URL
 export const credentialsSent = async (req, res) => {
   try {
-    const { id } = req.params; // employeeId from URL
+    const { id } = req.params; // this is Employee _id from URL
     const { email, password, role } = req.body;
 
     console.log("CREDENTIALS REQUEST:", id, email, role);
 
     if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required" });
+      return res
+        .status(400)
+        .json({ message: "Email and password are required" });
     }
 
-    // Check if user already exists for this employee
-    const existingUser = await User.findOne({ employeeId: id });
-    if (existingUser) {
-      return res.status(400).json({ message: "Credentials already created for this employee" });
-    }
-
-    // Get employee doc
-    const employeeDoc = await Employee.findOne({ employeeId: id });
+    // Find employee by _id
+    const employeeDoc = await Employee.findById(id);
     if (!employeeDoc) {
       return res.status(404).json({ message: "Employee not found" });
-    }else{  
-             const updateEmployee = await Employee.findOneAndUpdate(
-               { employeeId: id },
-               { credentialstatus: "Completed" },
-               { new: true }
-             );
-            
     }
 
-    // Save user with plain text password ❌ (testing only)
+    // Check if credentials already exist for this employee
+    const existingUser = await User.findOne({ employee: employeeDoc._id });
+    if (existingUser) {
+      return res
+        .status(400)
+        .json({ message: "Credentials already created for this employee" });
+    }
+
+    // Update credentialstatus
+    await Employee.findByIdAndUpdate(
+      id,
+      { credentialstatus: "Completed" },
+      { new: true }
+    );
+
+    // ✅ Safe employeeId: use business employeeId if present, else fallback to _id
+    const safeEmployeeId =
+      employeeDoc.employeeId && employeeDoc.employeeId.trim() !== ""
+        ? employeeDoc.employeeId
+        : employeeDoc._id.toString();
+
+    // Create User entry for login
     const user = await User.create({
-      employeeId: id,
+      employeeId: safeEmployeeId,        // ✅ never empty now
       name: employeeDoc.name,
       email,
-      password, // plain text
+      password,                          // plain text for testing
       role,
       employee: employeeDoc._id,
     });
@@ -90,7 +101,6 @@ export const credentialsSent = async (req, res) => {
   }
 };
 
-// ✅ Fetch all employees with linked Employee doc
 export const employeesAssigned = async (req, res) => {
   try {
     const employees = await User.find({ role: "employee" }).populate("employee");
@@ -101,7 +111,6 @@ export const employeesAssigned = async (req, res) => {
   }
 };
 
-// ✅ Fetch all Project Managers (PMs) from Users
 export const projectManagersAssigned = async (req, res) => {
   try {
     const pms = await Employee.find({ role: "project managers" });

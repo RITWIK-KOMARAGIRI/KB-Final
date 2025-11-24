@@ -5,13 +5,18 @@ import axios from "axios";
 const Credentials = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { employee } = location.state || {}; // employee object from AddEmployeeCredentials
-  console.log("Received state:", employee);
+
+  // We expect state from PendingCredentials:
+  // navigate("/hr/credentials", { state: { employee } })
+  const { employee } = location.state || {};
+
+  console.log("Received state in Credentials:", employee);
 
   const [username, setUsername] = useState(employee?.email || "");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // If no employee data, show a fallback
   if (!employee) {
     return (
       <div className="p-6">
@@ -25,33 +30,64 @@ const Credentials = () => {
       </div>
     );
   }
-console.log("Employee Data:", username, password); 
+
+  // ✅ Use Employee _id for backend URL
+  const idForApi = employee._id;
+
+  if (!idForApi) {
+    console.error("❌ employee._id is missing:", employee);
+  }
+
+  console.log("Employee Data (for credentials):", {
+    username,
+    password,
+    idForApi,
+  });
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!username || !password) {
+      alert("Username (email) and password are required.");
+      return;
+    }
+
+    if (!idForApi) {
+      alert(
+        "Internal error: Employee _id is missing. Cannot create credentials."
+      );
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // ✅ Send credentials to backend
-   const res = await axios.post(
-  `http://localhost:5000/api/auth/credentials/${employee.employeeId}`,
-  { email:username , password , role : employee?.role}
-);
-
+      // Backend: POST /api/auth/credentials/:id  (id = Employee _id)
+      const res = await axios.post(
+        `http://localhost:5000/api/auth/credentials/${idForApi}`,
+        {
+          email: username,
+          password,
+          role: employee?.role, // "employee", "project managers", etc.
+        }
+      );
 
       console.log("Credentials response:", res.data);
       alert(`✅ Credentials created for ${employee.name}`);
 
-      // ✅ Delete notification
-      //  await axios.delete(
-      //   `http://localhost:5000/api/notificationDelete/${employee._id}`
-      // );
-      // alert("Notification deleted successfully");
-
-      // // Navigate back after success
-       navigate(-1);
+      // After success:
+      // - backend set credentialstatus = "Completed"
+      // - PendingCredentials will re-fetch on navigate(-1)
+      navigate(-1);
     } catch (error) {
-      console.error("Error creating credentials or deleting notification:", error);
-      alert("Failed to create credentials or delete notification");
+      console.error(
+        "Error creating credentials:",
+        error.response?.data || error
+      );
+      alert(
+        error.response?.data?.message ||
+          "Failed to create credentials. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -64,13 +100,18 @@ console.log("Employee Data:", username, password);
       <div className="p-6 bg-white rounded-lg shadow border border-gray-200 space-y-3">
         <h2 className="text-xl font-semibold">{employee?.name}</h2>
         <p>
+          <span className="font-medium">Employee ID:</span>{" "}
+          {employee?.employeeId || "(not set)"}
+        </p>
+        <p>
           <span className="font-medium">Email:</span> {employee?.email}
         </p>
         <p>
           <span className="font-medium">Role:</span> {employee?.role}
         </p>
         <p>
-          <span className="font-medium">Department:</span> {employee?.department}
+          <span className="font-medium">Department:</span>{" "}
+          {employee?.department}
         </p>
         <p>
           <span className="font-medium">Status:</span> {employee?.status}
@@ -78,7 +119,7 @@ console.log("Employee Data:", username, password);
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
-            <label className="block font-medium">Username</label>
+            <label className="block font-medium">Username (Email)</label>
             <input
               type="text"
               value={username}
@@ -102,12 +143,21 @@ console.log("Employee Data:", username, password);
             type="submit"
             disabled={loading}
             className={`mt-4 px-4 py-2 rounded text-white ${
-              loading ? "bg-gray-500 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
+              loading
+                ? "bg-gray-500 cursor-not-allowed"
+                : "bg-green-600 hover:bg-green-700"
             }`}
           >
             {loading ? "Saving..." : "Save Credentials"}
           </button>
         </form>
+
+        <button
+          onClick={() => navigate(-1)}
+          className="mt-4 px-4 py-2 bg-gray-300 text-gray-800 rounded"
+        >
+          Cancel
+        </button>
       </div>
     </div>
   );

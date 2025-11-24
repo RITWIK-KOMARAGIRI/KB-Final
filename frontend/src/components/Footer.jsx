@@ -1,15 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { FaEnvelope, FaPhone, FaFacebookF, FaLinkedinIn } from "react-icons/fa";
+import { ThemeContext } from "../context/ThemeContext";
 
 const Footer = () => {
   const [currentTime, setCurrentTime] = useState("");
   const [currentDate, setCurrentDate] = useState("");
+  const { theme } = useContext(ThemeContext);
+
+  const isDark = theme === "dark";
 
   useEffect(() => {
     const updateDateTime = () => {
       const now = new Date();
 
-      // Format time
       const hours = now.getHours();
       const minutes = now.getMinutes().toString().padStart(2, "0");
       const seconds = now.getSeconds().toString().padStart(2, "0");
@@ -18,7 +21,6 @@ const Footer = () => {
 
       setCurrentTime(`${formattedHours}:${minutes}:${seconds} ${ampm}`);
 
-      // Format date
       const options = {
         weekday: "long",
         year: "numeric",
@@ -35,12 +37,16 @@ const Footer = () => {
   }, []);
 
   return (
-    <footer className="w-full bg-[#121223] text-white mt-auto">
-      {/* Footer Top Content */}
-      <div className="relative container mx-auto px-6 py-10 grid grid-cols-1 md:grid-cols-3 gap-8">
+    <footer
+      className={`w-full mt-auto transition-all duration-300
+      ${isDark ? "bg-slate-900 text-gray-300" : "bg-white text-gray-400"}`}
+    >
+      {/* Top Footer */}
+      <div className="relative container mx-auto px-6 py-12 grid grid-cols-1 md:grid-cols-3 gap-10">
+
         {/* Hyderabad Office */}
         <div>
-          <h3 className="text-blue-500 font-semibold text-lg mb-3">
+          <h3 className={`${isDark ? "text-blue-400" : "text-blue-600"} font-semibold text-lg mb-3`}>
             Hyderabad Office
           </h3>
           <p className="text-sm leading-relaxed">
@@ -48,13 +54,13 @@ const Footer = () => {
             Second floor, Plot No. 1, Street Number 5,<br />
             Gandhi Nagar, Sarvasukhi Colony,<br />
             West Marredpally, Secunderabad,<br />
-            Telangana–500026.
+            Telangana – 500026.
           </p>
         </div>
 
         {/* Vijayawada Office */}
         <div>
-          <h3 className="text-blue-500 font-semibold text-lg mb-3">
+          <h3 className={`${isDark ? "text-blue-400" : "text-blue-600"} font-semibold text-lg mb-3`}>
             Vijayawada Office
           </h3>
           <p className="text-sm leading-relaxed">
@@ -66,48 +72,66 @@ const Footer = () => {
           </p>
         </div>
 
-        {/* Contact Info + Clock */}
+        {/* Contact + Social + Clock */}
         <div className="relative">
-          <h3 className="text-blue-500 font-semibold text-lg mb-3">
+          <h3 className={`${isDark ? "text-blue-400" : "text-blue-600"} font-semibold text-lg mb-3`}>
             Contact Info
           </h3>
+
           <p className="flex items-center text-sm mb-2">
             <FaEnvelope className="mr-2 text-blue-400" />
             info@kodebloom.com
           </p>
+
           <p className="flex items-center text-sm mb-6">
             <FaPhone className="mr-2 text-blue-400" />
             +91-9063097733
           </p>
 
-          <h3 className="text-blue-500 font-semibold text-lg mb-3">
+          <h3 className={`${isDark ? "text-blue-400" : "text-blue-600"} font-semibold text-lg mb-3`}>
             Follow Us
           </h3>
+
           <div className="flex space-x-3">
             <a
               href="#"
-              className="w-9 h-9 flex items-center justify-center bg-gray-700 rounded-full hover:bg-blue-500 transition"
+              className={`w-9 h-9 flex items-center justify-center rounded-full transition
+              ${isDark ? "bg-slate-700 hover:bg-blue-500 text-white" : "bg-gray-200 hover:bg-blue-500 text-gray-900"}`}
             >
               <FaFacebookF />
             </a>
+
             <a
               href="#"
-              className="w-9 h-9 flex items-center justify-center bg-gray-700 rounded-full hover:bg-blue-500 transition"
+              className={`w-9 h-9 flex items-center justify-center rounded-full transition
+              ${isDark ? "bg-slate-700 hover:bg-blue-500 text-white" : "bg-gray-200 hover:bg-blue-500 text-gray-900"}`}
             >
               <FaLinkedinIn />
             </a>
           </div>
 
-          {/* Clock Section */}
-          <div className="absolute top-0 right-0 bg-gray-700 px-4 py-2 rounded-lg text-right">
-            <div className="text-blue-400 text-lg font-bold">{currentTime}</div>
-            <div className="text-xs text-gray-200">{currentDate}</div>
+          {/* Clock */}
+          <div
+            className="absolute top-0 right-0 px-4 py-2 rounded-lg text-right shadow-md"
+            style={{
+              backgroundColor: isDark ? "#1f2937" : "#e5e7eb",
+            }}
+          >
+            <div className={`${isDark ? "text-blue-400" : "text-blue-700"} text-lg font-bold`}>
+              {currentTime}
+            </div>
+            <div className={`${isDark ? "text-gray-300" : "text-gray-600"} text-xs`}>
+              {currentDate}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Footer Bottom */}
-      <div className="border-t border-gray-700 text-center py-2 text-gray-400 text-sm">
+      {/* Bottom Footer */}
+      <div
+        className={`text-center py-3 text-sm 
+        ${isDark ? "border-t border-gray-700 text-gray-400" : "border-t border-gray-200 text-gray-600"}`}
+      >
         © 2025. All Rights Reserved. KodeBloom Technology and Services Pvt. Ltd.
       </div>
     </footer>
