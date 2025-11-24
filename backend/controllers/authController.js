@@ -3,8 +3,9 @@
 import User from "../models/User.js";
 import Employee from "../models/Employee.js";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
-// SIGNIN (unchanged)
+// SIGNIN with JWT
 export const signin = async (req, res) => {
   const { email, password } = req.body;
 
@@ -29,12 +30,25 @@ export const signin = async (req, res) => {
     }
 
     // Login success
+    const tokenPayload = {
+      userId: user._id,
+      role: user.role,
+      employeeId: user.employee, // Employee _id
+    };
+
+    const token = jwt.sign(
+      tokenPayload,
+      process.env.JWT_SECRET || "dev_secret",
+      { expiresIn: "7d" }
+    );
+
     res.json({
       _id: user._id,
       name: user.name,
       role: user.role,
       email: user.email,
       employeeId: user.employee, // this is Employee _id
+      token,
     });
   } catch (error) {
     console.error("Signin error:", error);

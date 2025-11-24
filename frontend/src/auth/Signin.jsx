@@ -22,10 +22,12 @@ export default function Signin() {
 
       const data = res.data; // ✅ Correct way
 
-      
-
       setSuccess(`Welcome ${data.name}! Role: ${data.role}`);
       localStorage.setItem("users", JSON.stringify(data)); // ✅ Save user info
+
+      if (data.token) {
+        axios.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
+      }
 
       // ✅ Navigate based on role
       if (data.role === "director") navigate("/director");

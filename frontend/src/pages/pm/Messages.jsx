@@ -1,7 +1,8 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import axios from "axios";
 import { useLocation } from "react-router-dom";
 import { ThemeContext } from "../../context/ThemeContext";
+import { getSocket } from "../../utils/socket";
 
 const formatTime = (d = new Date()) =>
   d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -44,6 +45,9 @@ const PmMessages = () => {
   const [otherEmployeeName, setOtherEmployeeName] = useState(
     location.state?.fromEmployeeName || "Selected Employee"
   );
+  const [activeConversationId, setActiveConversationId] = useState(
+    location.state?.conversationId || null
+  );
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -62,64 +66,61 @@ const PmMessages = () => {
     }
   }, []);
 
-  // Resolve PM's own Employee id by matching email
+  // PM's Employee id comes from auth payload / signin response
   useEffect(() => {
-    const resolveMe = async () => {
-      if (!user?.email) return;
-      try {
-        const res = await axios.get("http://localhost:5000/api/employees");
-        const list = Array.isArray(res.data) ? res.data : [];
-        const mine = list.find((e) => e.email?.toLowerCase() === user.email.toLowerCase());
-        if (mine?._id) setMyEmployeeId(mine._id);
-      } catch (err) {
-        console.error("Error resolving PM employee id:", err);
-        setError("Failed to resolve your PM profile. Messaging may not work.");
-      }
-    };
-
-    resolveMe();
+    if (user?.employeeId) {
+      setMyEmployeeId(user.employeeId);
+    }
   }, [user]);
+
+  const mapMessageToBubble = useCallback(
+    (m) => ({
+      id: m._id,
+      sender:
+        m.from && m.from._id && myEmployeeId &&
+        String(m.from._id) === String(myEmployeeId)
+          ? "me"
+          : "other",
+      text: m.text || m.content,
+      time: m.createdAt ? formatTime(new Date(m.createdAt)) : "",
+    }),
+    [myEmployeeId]
+  );
+
+  const loadContacts = useCallback(async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/messages/contacts");
+      const list = Array.isArray(res.data) ? res.data : [];
+      setContacts(list);
+
+      if (!activeConversationId && list.length > 0) {
+        setActiveConversationId(list[0].conversationId);
+        setOtherEmployeeId(list[0].otherEmployeeId);
+        setOtherEmployeeName(list[0].otherName);
+      }
+    } catch (err) {
+      console.error("Error fetching PM contacts:", err);
+    }
+  }, [activeConversationId]);
 
   // Load contact list for sidebar
   useEffect(() => {
-    const fetchContacts = async () => {
-      if (!myEmployeeId) return;
-      try {
-        const res = await axios.get(
-          `http://localhost:5000/api/messages/contacts/${myEmployeeId}`
-        );
-        setContacts(Array.isArray(res.data) ? res.data : []);
-      } catch (err) {
-        console.error("Error fetching PM contacts:", err);
-      }
-    };
+    loadContacts();
+  }, [loadContacts]);
 
-    fetchContacts();
-    const interval = setInterval(fetchContacts, 5000);
-    return () => clearInterval(interval);
-  }, [myEmployeeId]);
-
-  // Load thread when both ids known
+  // Load thread when conversation changes
   useEffect(() => {
-    if (!myEmployeeId || !otherEmployeeId) return;
+    if (!activeConversationId) return;
 
     const fetchThread = async () => {
       setLoading(true);
       setError("");
       try {
-        const res = await axios.get("http://localhost:5000/api/messages/thread", {
-          params: { a: myEmployeeId, b: otherEmployeeId },
-        });
+        const res = await axios.get(
+          `http://localhost:5000/api/messages/thread/${activeConversationId}`
+        );
 
-        const mapped = (res.data || []).map((m) => ({
-          id: m._id,
-          sender:
-            m.from && m.from._id && String(m.from._id) === String(myEmployeeId)
-              ? "me"
-              : "other",
-          text: m.content,
-          time: m.createdAt ? formatTime(new Date(m.createdAt)) : "",
-        }));
+        const mapped = (res.data || []).map(mapMessageToBubble);
         setMessages(mapped);
       } catch (err) {
         console.error("Error fetching PM thread:", err);
@@ -130,7 +131,7 @@ const PmMessages = () => {
     };
 
     fetchThread();
-  }, [myEmployeeId, otherEmployeeId]);
+  }, [activeConversationId, mapMessageToBubble]);
 
   // Auto-scroll
   useEffect(() => {
@@ -139,9 +140,39 @@ const PmMessages = () => {
     }
   }, [messages]);
 
+  // Socket listeners
+  useEffect(() => {
+    let socket;
+    try {
+      socket = getSocket();
+      const handleNew = (payload) => {
+        if (!payload?.conversationId) return;
+        loadContacts();
+        if (
+          activeConversationId &&
+          String(payload.conversationId) === String(activeConversationId)
+        ) {
+          setMessages((prev) => [
+            ...prev,
+            mapMessageToBubble({ ...payload, from: { _id: payload.from } }),
+          ]);
+        }
+      };
+      const handleConvoUpdated = () => loadContacts();
+
+      socket.on("message:new", handleNew);
+      socket.on("conversation:updated", handleConvoUpdated);
+
+      return () => {
+        socket.off("message:new", handleNew);
+        socket.off("conversation:updated", handleConvoUpdated);
+      };
+    } catch (_e) {}
+  }, [activeConversationId, loadContacts, mapMessageToBubble]);
+
   const sendMessage = async () => {
     const trimmed = input.trim();
-    if (!trimmed || !myEmployeeId || !otherEmployeeId) return;
+    if (!trimmed || !otherEmployeeId) return;
 
     setSending(true);
     setError("");
@@ -156,11 +187,13 @@ const PmMessages = () => {
     setInput("");
 
     try {
-      await axios.post("http://localhost:5000/api/messages", {
-        fromEmployeeId: myEmployeeId,
+      const res = await axios.post("http://localhost:5000/api/messages", {
         toEmployeeId: otherEmployeeId,
-        content: trimmed,
+        text: trimmed,
       });
+      if (!activeConversationId && res.data?.conversationId) {
+        setActiveConversationId(res.data.conversationId);
+      }
     } catch (err) {
       console.error("Error sending PM reply:", err);
       setError("Failed to send message. Please try again.");
@@ -247,11 +280,13 @@ const PmMessages = () => {
                   onClick={async () => {
                     setOtherEmployeeId(c.otherEmployeeId);
                     setOtherEmployeeName(c.otherName);
+                    setActiveConversationId(c.conversationId);
                     try {
-                      await axios.post("http://localhost:5000/api/messages/mark-seen", {
-                        meId: myEmployeeId,
-                        otherId: c.otherEmployeeId,
-                      });
+                      if (c.conversationId) {
+                        await axios.post(
+                          `http://localhost:5000/api/messages/${c.conversationId}/mark-seen`
+                        );
+                      }
                     } catch (err) {
                       console.error("Error marking PM messages seen:", err);
                     }

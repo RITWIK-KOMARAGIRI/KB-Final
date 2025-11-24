@@ -5,6 +5,7 @@ import { FaSun, FaMoon, FaSignOutAlt, FaUser } from "react-icons/fa";
 import { useNavigate, NavLink } from "react-router-dom";
 import axios from "axios";
 import { ThemeContext } from "../context/ThemeContext";
+import { getSocket } from "../utils/socket";
 import kbLogo from "../assets/kb_logo.png";
 
 const Header = ({ toggleSidebar }) => {
@@ -79,16 +80,42 @@ const Header = ({ toggleSidebar }) => {
     setShowNotifications(false);
   };
 
-  // Fetch notifications from backend
+  // Fetch unread message summary for logged-in user
   useEffect(() => {
-    axios
-      .get("http://localhost:5000/api/fetchnotifications")
-      .then((res) => {
-        setNotifications(res.data);
-        setNotificationCount(res.data.length);
-      })
-      .catch((err) => console.error("Error fetching notifications:", err))
-      .finally(() => setLoading(false));
+    const fetchUnread = async () => {
+      try {
+        const res = await axios.get(
+          "http://localhost:5000/api/messages/unread-summary"
+        );
+        const data = res.data || {};
+        setNotificationCount(data.totalUnread || 0);
+        setNotifications(data.items || []);
+      } catch (err) {
+        console.error("Error fetching message unread summary:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUnread();
+
+    // Subscribe to socket events to keep counts real-time
+    let socket;
+    try {
+      socket = getSocket();
+      const handleUpdate = () => {
+        fetchUnread();
+      };
+      socket.on("conversation:updated", handleUpdate);
+      socket.on("message:new", handleUpdate);
+
+      return () => {
+        socket.off("conversation:updated", handleUpdate);
+        socket.off("message:new", handleUpdate);
+      };
+    } catch (_e) {
+      // ignore socket errors in header
+    }
   }, []);
 
   // Logout handler (taken from your code)
@@ -181,31 +208,46 @@ const Header = ({ toggleSidebar }) => {
               </div>
 
               <div className="max-h-60 overflow-y-auto">
-                {notifications.map((notification) => (
+                {notifications.length === 0 && !loading && (
+                  <div className="p-3 text-sm text-gray-500">
+                    No unread messages.
+                  </div>
+                )}
+                {notifications.map((n) => (
                   <button
-                    key={notification._id}
+                    key={n.conversationId}
                     onClick={() => {
-                      console.log("Clicked notification:", notification);
-
-                      if (user.role === "HR" || user.role === "hr") {
-                        navigate("/hr/credentials", {
-                          state: {
-                            employee: notification,
-                            empId: notification._id,
-                          },
+                      // Navigate to role-specific messenger for this conversation
+                      if (user.role === "employee") {
+                        navigate("/employee/messenger", {
+                          state: { conversationId: n.conversationId },
+                        });
+                      } else if (user.role === "project managers") {
+                        navigate("/pm/messages", {
+                          state: { conversationId: n.conversationId },
+                        });
+                      } else if (user.role === "hr") {
+                        navigate("/hr/messages", {
+                          state: { conversationId: n.conversationId },
+                        });
+                      } else if (user.role === "director") {
+                        navigate("/director/messages", {
+                          state: { conversationId: n.conversationId },
                         });
                       }
                     }}
                     className="w-full text-left border-b border-gray-100 last:border-b-0 p-3 hover:bg-gray-50 cursor-pointer"
                   >
                     <p className="text-gray-800 font-semibold">
-                      {notification.title}
+                      Unread message from {n.lastMessageFrom?.name || "Unknown"}
                     </p>
-                    <p className="text-gray-600 text-sm mt-1">
-                      {notification.body}
+                    <p className="text-gray-600 text-sm mt-1 truncate">
+                      {n.lastMessage}
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
-                      {new Date(notification.createdAt).toLocaleString()}
+                      {n.lastMessageAt
+                        ? new Date(n.lastMessageAt).toLocaleString()
+                        : ""}
                     </p>
                   </button>
                 ))}

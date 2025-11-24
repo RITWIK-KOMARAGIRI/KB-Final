@@ -1,6 +1,7 @@
 // src/App.jsx
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "./context/ThemeContext";
+import axios from "axios";
 import Signin from "./auth/Signin";
 import DirectorDashboard from "./pages/DirectorDashboard";
 import PMDashboard from "./pages/pm/Dashboard";
@@ -23,6 +24,8 @@ import HrCredentialsAdd from "./pages/director/HrCredentialsAdd";
 import AssignCredentials from "./pages/director/AssignCredentials";
 import EmployeeDetails from "./pages/hr/employeeDetails";
 import PmDetails from "./pages/hr/pmDetails";
+import HrMessages from "./pages/hr/Messages";
+import DirectorMessages from "./pages/director/Messages";
 import MyTeam from "./pages/pm/MyTeam";
 import CreateProject from "./pages/pm/CreateProject";
 import MonitorProgress from "./pages/pm/MonitorProgress";
@@ -41,6 +44,17 @@ import LeaveApplication from "./pages/employee/LeaveApplication";
 import Messenger from "./pages/employee/Messenger";
 import PmMessages from "./pages/pm/Messages"; // <-- added import
 function App() {
+  // Ensure axios sends JWT if user already logged in
+  try {
+    const raw = localStorage.getItem("users");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.token) {
+        axios.defaults.headers.common["Authorization"] = `Bearer ${parsed.token}`;
+      }
+    }
+  } catch (_e) {}
+
   return (
             <ThemeProvider>
 
@@ -109,6 +123,13 @@ function App() {
           <PrivateRoute role="director">
             <Layout>
               <Notice/>
+            </Layout>
+          </PrivateRoute>
+        } />
+        <Route path="/director/messages" element={
+          <PrivateRoute role="director">
+            <Layout>
+              <DirectorMessages />
             </Layout>
           </PrivateRoute>
         } />
@@ -321,12 +342,22 @@ function App() {
             </PrivateRoute>
           }
         />
-        <Route 
+        <Route
           path="/hr/manage-employee"
           element={
             <PrivateRoute role="hr">
               <Layout>
                 <ManageEmployee />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/hr/messages"
+          element={
+            <PrivateRoute role="hr">
+              <Layout>
+                <HrMessages />
               </Layout>
             </PrivateRoute>
           }

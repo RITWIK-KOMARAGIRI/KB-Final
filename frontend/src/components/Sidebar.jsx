@@ -14,6 +14,8 @@ import {
 
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { ThemeContext } from "../context/ThemeContext";
+import axios from "axios";
+import { getSocket } from "../utils/socket";
 
 const Sidebar = ({
   isOpen = true,
@@ -27,6 +29,8 @@ const Sidebar = ({
   const role = storedUser?.role || "Guest";
   const { theme } = useContext(ThemeContext);
   const isDark = theme === "dark";
+
+  const [messageUnread, setMessageUnread] = useState(0);
 
   const sidebarBg = isDark ? "bg-slate-900 text-gray-300" : "bg-white text-gray-700";
   const titleColor = isDark ? "text-gray-400" : "text-gray-500";
@@ -61,10 +65,19 @@ const Sidebar = ({
 
   // Use this component to render icon + label items.
   // It accepts active boolean so parent can control active styling.
-  const Item = ({ icon: Icon, label, active }) => (
+  const Item = ({ icon: Icon, label, active, badge }) => (
     <div className={itemClass(active)}>
       <Icon className="w-5 h-5 flex-shrink-0" />
-      {!isCollapsed && <span className="menu-text">{label}</span>}
+      {!isCollapsed && (
+        <span className="menu-text flex-1 flex justify-between items-center">
+          <span>{label}</span>
+          {badge > 0 && (
+            <span className="ml-2 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-green-500 text-white text-[10px]">
+              {badge}
+            </span>
+          )}
+        </span>
+      )}
     </div>
   );
 
@@ -76,6 +89,40 @@ const Sidebar = ({
       setOpenEmployeeMgmt(true);
     }
   }, [location.pathname]);
+
+  // Messenger unread count for sidebar badge
+  useEffect(() => {
+    const fetchUnread = async () => {
+      try {
+        const res = await axios.get(
+          "http://localhost:5000/api/messages/unread-summary"
+        );
+        const data = res.data || {};
+        setMessageUnread(data.totalUnread || 0);
+      } catch (err) {
+        console.error("Error fetching sidebar unread summary:", err);
+      }
+    };
+
+    fetchUnread();
+
+    let socket;
+    try {
+      socket = getSocket();
+      const handleUpdate = () => {
+        fetchUnread();
+      };
+      socket.on("conversation:updated", handleUpdate);
+      socket.on("message:new", handleUpdate);
+
+      return () => {
+        socket.off("conversation:updated", handleUpdate);
+        socket.off("message:new", handleUpdate);
+      };
+    } catch (_e) {
+      // ignore socket setup errors
+    }
+  }, []);
 
   return (
     <aside
@@ -112,9 +159,19 @@ const Sidebar = ({
       {/* ---------- DIRECTOR ---------- */}
       {role === "director" && (
         <>
+          <NavLink to="/director/messages" className="w-full text-left">
+            {({ isActive }) => (
+              <Item
+                icon={FaBullhorn}
+                label="Messenger"
+                active={isActive}
+                badge={messageUnread}
+              />
+            )}
+          </NavLink>
           <NavLink to="/director/announcement" className="w-full text-left">
             {({ isActive }) => (
-              <Item icon={FaBullhorn} label="Messenger / Announcement" active={isActive} />
+              <Item icon={FaBullhorn} label="Announcement" active={isActive} />
             )}
           </NavLink>
 
@@ -157,6 +214,17 @@ const Sidebar = ({
       {/* ---------- HR ---------- */}
       {role === "hr" && (
         <>
+          <NavLink to="/hr/messages" className="w-full text-left">
+            {({ isActive }) => (
+              <Item
+                icon={FaBullhorn}
+                label="Messenger"
+                active={isActive}
+                badge={messageUnread}
+              />
+            )}
+          </NavLink>
+
           <Title>EMPLOYEE MANAGEMENT</Title>
 
           {/* Collapsible header (button) */}
@@ -301,7 +369,14 @@ const Sidebar = ({
           </NavLink>
 
           <NavLink to="/employee/messenger" className="w-full text-left">
-            {({ isActive }) => <Item icon={FaBullhorn} label="Messenger" active={isActive} />}
+            {({ isActive }) => (
+              <Item
+                icon={FaBullhorn}
+                label="Messenger"
+                active={isActive}
+                badge={messageUnread}
+              />
+            )}
           </NavLink>
 
           <NavLink to="/employee/performance" className="w-full text-left">

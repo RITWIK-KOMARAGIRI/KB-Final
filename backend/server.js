@@ -3,6 +3,9 @@ import dotenv from "dotenv";
 import connectDB from "./config/db.js";
 import cors from "cors";
 import path from "path"; // ✅ Add this
+import http from "http";
+import { Server } from "socket.io";
+import jwt from "jsonwebtoken";
 
 
 // Route imports
@@ -16,7 +19,7 @@ import holidayRoutes from "./routes/holidayRoutes.js";
 import announcementRoutes from "./routes/announcementRoutes.js";
 import performanceRoutes from "./routes/performanceRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
-
+import messageRoutes from "./routes/messageRoutes.js";
 
 // Models
 import Notification from "./models/Notification.js";
@@ -46,7 +49,7 @@ app.use(
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
 // ✅ Routes
- app.use("/api/auth", authRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/director", directorRoutes);
 app.use("/api/hr", hrRoutes);
 app.use("/api/pm", pmRoutes);
@@ -56,6 +59,7 @@ app.use("/api/holidays", holidayRoutes);
 app.use("/api/announcements", announcementRoutes);
 app.use("/api/performance", performanceRoutes);
 app.use("/api/settings", settingsRoutes);
+app.use("/api/messages", messageRoutes);
 
 
 
@@ -163,6 +167,47 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ message: "Server error" });
 });
 
+// ✅ Socket.IO setup
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:5173",
+    credentials: true,
+  },
+});
+
+io.use((socket, next) => {
+  try {
+    const token = socket.handshake.auth?.token;
+    if (!token) return next(new Error("No auth token"));
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "dev_secret");
+    socket.user = decoded;
+    return next();
+  } catch (err) {
+    return next(new Error("Invalid auth token"));
+  }
+});
+
+io.on("connection", (socket) => {
+  const { employeeId, role } = socket.user || {};
+  if (!employeeId) {
+    socket.disconnect(true);
+    return;
+  }
+
+  const room = `user:${employeeId.toString()}`;
+  socket.join(room);
+  console.log("Socket connected", room, "role:", role);
+
+  socket.on("disconnect", () => {
+    console.log("Socket disconnected", room);
+  });
+});
+
+// Make io accessible in routes via req.app.get("io")
+app.set("io", io);
+
 // ✅ Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
