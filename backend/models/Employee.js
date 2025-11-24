@@ -36,7 +36,7 @@ const employeeSchema = new mongoose.Schema(
       type: String,
       enum: ["Pending", "Completed"],
       default: "Pending",
-    },
+    },  
 
     assignedPm: {
       type: mongoose.Schema.Types.ObjectId,

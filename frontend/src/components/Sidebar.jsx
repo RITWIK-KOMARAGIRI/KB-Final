@@ -1,4 +1,5 @@
 import React, { useState, useContext, useEffect } from "react";
+import axios from "axios";
 import {
   FaHome,
   FaUserPlus,
@@ -54,9 +55,21 @@ const Sidebar = ({
     </div>
   );
 
-  const handleLogout = () => {
-    localStorage.removeItem("users");
-    navigate("/");
+  // 🔹 Updated logout: send logout event to backend, then clear localStorage + navigate
+  const handleLogout = async () => {
+    try {
+      if (storedUser?.employeeId) {
+        await axios.post("http://localhost:5000/api/auth/logout", {
+          employeeId: storedUser.employeeId, // Employee _id from signin response
+        });
+      }
+    } catch (err) {
+      console.error("Logout tracking failed:", err);
+      // still proceed with frontend logout
+    } finally {
+      localStorage.removeItem("users");
+      navigate("/");
+    }
   };
 
   // Use this component to render icon + label items.
@@ -194,7 +207,15 @@ const Sidebar = ({
             <div className="ml-8 mt-2 space-y-2">
               <NavLink to="/hr/add-credentials" className="block">
                 {({ isActive }) => (
-                  <div className={`text-sm flex items-center gap-2 px-1 py-1 ${isActive ? "text-blue-700 font-medium" : isDark ? "text-gray-300" : "text-gray-700"}`}>
+                  <div
+                    className={`text-sm flex items-center gap-2 px-1 py-1 ${
+                      isActive
+                        ? "text-blue-700 font-medium"
+                        : isDark
+                        ? "text-gray-300"
+                        : "text-gray-700"
+                    }`}
+                  >
                     <span className="mr-2">•</span>
                     <span>Create Credentials</span>
                   </div>
@@ -203,7 +224,15 @@ const Sidebar = ({
 
               <NavLink to="/hr/manage-employee" className="block">
                 {({ isActive }) => (
-                  <div className={`text-sm flex items-center gap-2 px-1 py-1 ${isActive ? "text-blue-700 font-medium" : isDark ? "text-gray-300" : "text-gray-700"}`}>
+                  <div
+                    className={`text-sm flex items-center gap-2 px-1 py-1 ${
+                      isActive
+                        ? "text-blue-700 font-medium"
+                        : isDark
+                        ? "text-gray-300"
+                        : "text-gray-700"
+                    }`}
+                  >
                     <span className="mr-2">•</span>
                     <span>Manage Employees</span>
                   </div>
@@ -212,7 +241,15 @@ const Sidebar = ({
 
               <NavLink to="/hr/employee-records" className="block">
                 {({ isActive }) => (
-                  <div className={`text-sm flex items-center gap-2 px-1 py-1 ${isActive ? "text-blue-700 font-medium" : isDark ? "text-gray-300" : "text-gray-700"}`}>
+                  <div
+                    className={`text-sm flex items-center gap-2 px-1 py-1 ${
+                      isActive
+                        ? "text-blue-700 font-medium"
+                        : isDark
+                        ? "text-gray-300"
+                        : "text-gray-700"
+                    }`}
+                  >
                     <span className="mr-2">•</span>
                     <span>View Employee List</span>
                   </div>
@@ -246,7 +283,15 @@ const Sidebar = ({
           <div className="mt-4">
             <NavLink to="/hr/recruitment" className="w-full text-left">
               {({ isActive }) => (
-                <div className={`w-full flex items-center justify-between px-5 py-3 ${isActive ? "bg-blue-50 text-blue-700 border-l-4 border-blue-600" : isDark ? "text-gray-300 hover:bg-slate-800" : "text-gray-700 hover:bg-gray-100"}`}>
+                <div
+                  className={`w-full flex items-center justify-between px-5 py-3 ${
+                    isActive
+                      ? "bg-blue-50 text-blue-700 border-l-4 border-blue-600"
+                      : isDark
+                      ? "text-gray-300 hover:bg-slate-800"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
                   <div className="flex items-center gap-2">
                     <FaUsers className="w-4 h-4" />
                     {!isCollapsed && <span>Recruitment</span>}
@@ -258,7 +303,15 @@ const Sidebar = ({
 
             <NavLink to="/hr/attendance" className="w-full text-left">
               {({ isActive }) => (
-                <div className={`w-full flex items-center justify-between px-5 py-3 ${isActive ? "bg-blue-50 text-blue-700 border-l-4 border-blue-600" : isDark ? "text-gray-300 hover:bg-slate-800" : "text-gray-700 hover:bg-gray-100"}`}>
+                <div
+                  className={`w-full flex items-center justify-between px-5 py-3 ${
+                    isActive
+                      ? "bg-blue-50 text-blue-700 border-l-4 border-blue-600"
+                      : isDark
+                      ? "text-gray-300 hover:bg-slate-800"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
                   <div className="flex items-center gap-2">
                     <FaPlaneDeparture className="w-4 h-4" />
                     {!isCollapsed && <span>Attendance & Leaves</span>}
@@ -289,15 +342,21 @@ const Sidebar = ({
           </NavLink>
 
           <NavLink to="/employee/holiday-list" className="w-full text-left">
-            {({ isActive }) => <Item icon={FaPlaneDeparture} label="Holiday List" active={isActive} />}
+            {({ isActive }) => (
+              <Item icon={FaPlaneDeparture} label="Holiday List" active={isActive} />
+            )}
           </NavLink>
 
           <NavLink to="/employee/important-notice" className="w-full text-left">
-            {({ isActive }) => <Item icon={FaBullhorn} label="Important Notices" active={isActive} />}
+            {({ isActive }) => (
+              <Item icon={FaBullhorn} label="Important Notices" active={isActive} />
+            )}
           </NavLink>
 
           <NavLink to="/employee/leave-application" className="w-full text-left">
-            {({ isActive }) => <Item icon={FaPlaneDeparture} label="Leave Application" active={isActive} />}
+            {({ isActive }) => (
+              <Item icon={FaPlaneDeparture} label="Leave Application" active={isActive} />
+            )}
           </NavLink>
 
           <NavLink to="/employee/messenger" className="w-full text-left">
@@ -324,7 +383,11 @@ const Sidebar = ({
             className="w-full flex justify-end text-gray-400 hover:text-gray-600 transition"
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            {isCollapsed ? <FaChevronRight className="w-4 h-4" /> : <FaChevronLeft className="w-4 h-4" />}
+            {isCollapsed ? (
+              <FaChevronRight className="w-4 h-4" />
+            ) : (
+              <FaChevronLeft className="w-4 h-4" />
+            )}
           </button>
         </div>
       </div>

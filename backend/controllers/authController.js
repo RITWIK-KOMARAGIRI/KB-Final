@@ -1,10 +1,10 @@
-
-// backend/controllers/authController.js (or wherever this is)
+// backend/controllers/authController.js
 import User from "../models/User.js";
 import Employee from "../models/Employee.js";
+import Attendance from "../models/Attendance.js";
 import bcrypt from "bcryptjs";
 
-// SIGNIN (unchanged)
+// SIGNIN + record login time / attendance
 export const signin = async (req, res) => {
   const { email, password } = req.body;
 
@@ -28,21 +28,100 @@ export const signin = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Login success
+    // ✅ LOGIN SUCCESS — record login time + attendance if this user is linked to an Employee
+    const now = new Date();
+    let employeeDoc = null;
+
+    if (user.employee) {
+      employeeDoc = await Employee.findById(user.employee);
+      if (employeeDoc) {
+        // last login time
+        employeeDoc.lastLoginAt = now;
+        await employeeDoc.save();
+
+        // Attendance record for today
+        const startOfDay = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate()
+        );
+
+        let record = await Attendance.findOne({
+          employee: employeeDoc._id,
+          date: startOfDay,
+        });
+
+        if (!record) {
+          // first login of the day: create new record
+          await Attendance.create({
+            employee: employeeDoc._id,
+            date: startOfDay,
+            loginAt: now,
+            status: "Present",
+          });
+        } else if (!record.loginAt) {
+          // edge case: record exists but loginAt missing
+          record.loginAt = now;
+          record.status = "Present";
+          await record.save();
+        }
+      }
+    }
+
+    // Response sent to frontend (same as before)
     res.json({
       _id: user._id,
       name: user.name,
       role: user.role,
       email: user.email,
-      employeeId: user.employee, // this is Employee _id
-    });
+  employeeId: user.role === "employee" ? user.employee : null,    });
   } catch (error) {
     console.error("Signin error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
 
-// ✅ Save credentials - NOW using Employee _id in URL
+// ✅ Logout: record logout time / attendance
+export const logout = async (req, res) => {
+  try {
+    const { employeeId } = req.body; // Expect Employee _id from frontend
+
+    if (!employeeId) {
+      return res.status(400).json({ message: "employeeId is required" });
+    }
+
+    const employeeDoc = await Employee.findById(employeeId);
+    if (!employeeDoc) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+
+    const now = new Date();
+    employeeDoc.lastLogoutAt = now;
+    await employeeDoc.save();
+
+    const startOfDay = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
+
+    const record = await Attendance.findOne({
+      employee: employeeDoc._id,
+      date: startOfDay,
+    });
+
+    if (record && !record.logoutAt) {
+      record.logoutAt = now;
+      await record.save();
+    }
+
+    res.json({ message: "Logout tracked" });
+  } catch (error) {
+    console.error("Logout error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 // ✅ Save credentials - NOW using Employee _id in URL
 export const credentialsSent = async (req, res) => {
   try {
@@ -86,10 +165,10 @@ export const credentialsSent = async (req, res) => {
 
     // Create User entry for login
     const user = await User.create({
-      employeeId: safeEmployeeId,        // ✅ never empty now
+      employeeId: safeEmployeeId, // ✅ never empty now
       name: employeeDoc.name,
       email,
-      password,                          // plain text for testing
+      password, // plain text for testing
       role,
       employee: employeeDoc._id,
     });
